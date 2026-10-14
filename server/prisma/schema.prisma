@@ -1,0 +1,51 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("TECHNICIAN") // DISPATCHER | TECHNICIAN
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignedJobs Job[] @relation("TechnicianJobs")
+}
+
+model Job {
+  id              String    @id @default(uuid())
+  title           String
+  description     String
+  customerName    String
+  customerPhone   String
+  customerAddress String
+  latitude        Float?
+  longitude       Float?
+  priority        String    @default("MEDIUM") // LOW | MEDIUM | HIGH | EMERGENCY
+  status          String    @default("PENDING") // PENDING | EN_ROUTE | IN_PROGRESS | COMPLETED | CANCELLED
+  
+  // Offline sync & concurrency tracking
+  version         Int       @default(1)
+  clientUpdatedAt DateTime?
+  syncedAt        DateTime?
+
+  // Completion artifacts
+  completionNotes String?
+  signatureData   String?
+  completedAt     DateTime?
+
+  // Relations
+  technicianId    String?
+  technician      User?     @relation("TechnicianJobs", fields: [technicianId], references: [id])
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
