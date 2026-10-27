@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Service Request Intake | FieldOps Platform</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    input, textarea, select {
+      background-color: #0f172a !important;
+      color: #f8fafc !important;
+      border: 1px solid #334155 !important;
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover, 
+    input:-webkit-autofill:focus, 
+    textarea:-webkit-autofill {
+      -webkit-text-fill-color: #f8fafc !important;
+      -webkit-box-shadow: 0 0 0px 1000px #0f172a inset !important;
+      transition: background-color 5000s ease-in-out 0s;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between antialiased">
+
+  <!-- Navigation / Header -->
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-600/30 font-extrabold text-xl">
+          ⚡
+        </div>
+        <div>
+          <h1 class="text-base font-extrabold tracking-tight text-white">FieldOps Platform</h1>
+          <p class="text-xs text-slate-400">Public Customer Service Request Portal</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-3">
+        <button
+          type="button"
+          id="headerTrackBtn"
+          class="text-xs text-blue-400 hover:text-blue-300 font-semibold underline underline-offset-4 flex items-center space-x-1.5 transition cursor-pointer"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <span>Already have a reference ID? Track Here</span>
+        </button>
+        <span class="hidden md:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
+          Intake Active
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Top Reference ID Search Bar -->
+  <div id="topTrackBar" class="hidden bg-slate-950 border-b border-slate-800 px-4 py-3 transition-all duration-300">
+    <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="flex items-center space-x-2 text-xs text-slate-300">
+        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+        <span class="font-medium">Track your existing order status:</span>
+      </div>
+      <form id="trackSearchForm" class="flex items-center space-x-2 w-full sm:w-auto">
+        <input
+          type="text"
+          id="trackSearchInput"
+          placeholder="Enter reference ID (e.g. #65FC90D1)"
+          required
+          class="w-full sm:w-64 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
+        />
+        <button
+          type="submit"
+          class="px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow transition cursor-pointer shrink-0"
+        >
+          Track
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-4xl w-full mx-auto px-4 py-8 sm:py-12">
+    <!-- Intro Header -->
+    <div id="introHeader" class="text-center max-w-xl mx-auto mb-8 sm:mb-10">
+      <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Book a Field Service Visit</h2>
+      <p id="introSubtitle" class="text-slate-400 text-sm mt-2 leading-relaxed">
+        Submit your service request directly into our centralized dispatch operations queue. A certified technician will be assigned to resolve your issue.
+      </p>
+    </div>
+
+    <!-- Booking Card -->
+    <div class="bg-slate-800/80 rounded-2xl border border-slate-700/80 shadow-2xl p-6 sm:p-8 backdrop-blur-sm relative overflow-hidden">
+      <!-- Glow ambient backdrop -->
+      <div class="absolute -top-24 -right-24 w-64 h-64 bg-blue-600/15 rounded-full blur-3xl pointer-events-none"></div>
+
+      <!-- Booking Form -->
+      <form id="bookingForm" class="space-y-6 relative z-10">
+        <!-- Error Alert -->
+        <div id="bookingError" class="hidden p-4 rounded-xl bg-red-950/60 border border-red-500/30 text-red-300 text-xs font-medium"></div>
+
+        <!-- Section 1: Customer Information -->
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-blue-400 mb-3 flex items-center space-x-1.5">
+            <span>1. Contact & Location Information</span>
+          </h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Your Full Name / Company *</label>
+              <input
+                type="text"
+                id="customerName"
+                required
+                placeholder="e.g. Sarah Jenkins or Apex Commercial"
+                class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Phone Number *</label>
+              <input
+                type="tel"
+                id="customerPhone"
+                required
+                placeholder="e.g. +1 555-0199 or +92 300 1234567"
+                class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition font-mono"
+              />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Email Address (For PDF Certificate)</label>
+              <input
+                type="email"
+                id="customerEmail"
+                placeholder="e.g. sarah@example.com"
+                class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Service Site / Property Address *</label>
+              <input
+                type="text"
+                id="customerAddress"
+                required
+                placeholder="e.g. 452 Elm Street, Suite 300"
+                class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-700/60 pt-5"></div>
+
+        <!-- Section 2: Problem Details -->
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-blue-400 mb-3">
+            <span>2. Work Order Details</span>
+          </h3>
+
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Issue Headline / Service Title *</label>
+              <input
+                type="text"
+                id="title"
+                required
+                placeholder="e.g. HVAC Rooftop Unit Compressor Vibration & Loss of Cooling"
+                class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Detailed Description & Symptoms *</label>
+              <textarea
+                id="description"
+                rows="4"
+                required
+                placeholder="Provide details about symptoms, error codes, equipment access hours, or safety instructions..."
+                class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              ></textarea>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Urgency / Service Priority *</label>
+              <select
+                id="priority"
+                class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+              >
+                <option value="MEDIUM" selected>⚡ Standard (Scheduled Visit)</option>
+                <option value="HIGH">🔥 Urgent (24hr Target Response)</option>
+                <option value="EMERGENCY">🚨 Immediate Emergency (Critical Outage / Hazard)</option>
+                <option value="LOW">🌱 Low / Routine Periodic Maintenance</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="pt-4 flex items-center justify-end">
+          <button
+            type="submit"
+            id="submitBtn"
+            class="w-full sm:w-auto px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg shadow-blue-600/30 transition flex items-center justify-center space-x-2"
+          >
+            <span>Submit Service Request</span>
+            <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+          </button>
+        </div>
+      </form>
+
+      <!-- Success Confirmation Badge (Initially Hidden) -->
+      <div id="confirmationCard" class="hidden text-center py-6 sm:py-8 space-y-5">
+        <div class="w-16 h-16 rounded-2xl bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center border border-emerald-500/30 shadow-xl shadow-emerald-500/10">
+          <svg class="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+
+        <div>
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 mb-2">
+            Order Queued for Dispatch
+          </span>
+          <h3 class="text-xl sm:text-2xl font-extrabold text-white">Service Request Confirmed!</h3>
+          <p class="text-slate-400 text-sm mt-1 max-w-md mx-auto">
+            Your request has been broadcasted to the FieldOps Dispatch Operations Console. An operations dispatcher is assigning an authorized technician to your ticket.
+          </p>
+        </div>
+
+        <!-- Tracking Badge Box -->
+        <div class="bg-slate-900/90 border border-slate-700 rounded-xl p-4 w-full mx-auto text-left space-y-2.5" style="max-width: 480px;">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-400 uppercase font-bold tracking-wider">Tracking Reference ID:</span>
+            <div class="flex items-center space-x-2">
+              <span id="displayTrackingId" class="font-mono text-emerald-400 font-bold select-all text-sm">--</span>
+              <button
+                type="button"
+                id="copyTrackingBtn"
+                title="Copy Reference ID"
+                style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; cursor: pointer; color: #f8fafc; transition: all 0.2s;"
+                class="hover:bg-white/15 hover:border-white/30"
+              >
+                <svg id="copyTrackingIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-400 uppercase font-bold tracking-wider">Customer Name:</span>
+            <span id="displayCustomer" class="text-slate-200 font-semibold truncate max-w-[200px]">--</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-400 uppercase font-bold tracking-wider">Status:</span>
+            <span id="displayStatus" class="inline-flex items-center text-amber-400 font-bold">
+              <span class="w-2 h-2 rounded-full bg-amber-400 mr-1.5 animate-pulse"></span>
+              PENDING DISPATCH
+            </span>
+          </div>
+        </div>
+
+        <!-- Action Buttons Hierarchy -->
+        <div style="max-width: 480px; width: 100%; margin: 24px auto 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+          <button
+            type="button"
+            id="trackStatusBtn"
+            style="flex: 1.2; height: 42px; border-radius: 8px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; white-space: nowrap;"
+            class="bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 transition border-0"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span>Track Status Live</span>
+          </button>
+          <button
+            type="button"
+            id="downloadSlipBtnMain"
+            style="flex: 1; height: 42px; border-radius: 8px; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; white-space: nowrap;"
+            class="bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 transition"
+          >
+            <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span>Save Slip</span>
+          </button>
+          <button
+            type="button"
+            id="bookAnotherBtn"
+            style="flex: 1.1; height: 42px; border-radius: 8px; font-size: 12.5px; color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.1); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; white-space: nowrap;"
+            class="bg-slate-800/40 hover:bg-slate-800/80 hover:text-white transition"
+          >
+            <span>Submit Another Request</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Live Status Modal -->
+  <div id="liveStatusModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden p-6 sm:p-8 space-y-6 animate-in fade-in duration-200">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center border border-blue-500/30">
+            <svg class="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <h4 class="text-base font-extrabold text-white">Live Service Dispatch Tracker</h4>
+              <span id="liveSseBadge" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1 animate-ping"></span>
+                Live SSE
+              </span>
+            </div>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Order Reference: <span id="liveModalTrackingId" class="font-mono text-emerald-400 font-bold select-all">#--------</span>
+            </p>
+          </div>
+        </div>
+        <button id="closeLiveStatusBtn" class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition cursor-pointer">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- 4-Step Horizontal Progress Tracker -->
+      <div class="py-3 px-2 bg-slate-950/40 rounded-xl border border-slate-800">
+        <div class="grid grid-cols-4 gap-2 relative">
+          <!-- Connecting Line Behind Circles -->
+          <div class="absolute top-4 left-[12%] right-[12%] h-0.5 bg-slate-800 -z-0">
+            <div id="trackerProgressBar" class="h-full bg-emerald-500 transition-all duration-500" style="width: 0%;"></div>
+          </div>
+
+          <!-- Step 1: Request Received -->
+          <div id="stepCol1" class="flex flex-col items-center text-center space-y-2 relative z-10">
+            <div id="stepCircle1" class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all">
+              ✓
+            </div>
+            <div>
+              <p id="stepTitle1" class="text-xs font-bold text-white">Request Received</p>
+              <p id="stepSub1" class="text-[10px] text-emerald-400 mt-0.5">Pending Dispatch</p>
+            </div>
+          </div>
+
+          <!-- Step 2: Tech Assigned -->
+          <div id="stepCol2" class="flex flex-col items-center text-center space-y-2 relative z-10">
+            <div id="stepCircle2" class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 border border-slate-700 flex items-center justify-center font-bold text-xs transition-all">
+              2
+            </div>
+            <div>
+              <p id="stepTitle2" class="text-xs font-bold text-slate-400">Tech Assigned</p>
+              <p id="stepSub2" class="text-[10px] text-slate-500 mt-0.5">Awaiting staff</p>
+            </div>
+          </div>
+
+          <!-- Step 3: Tech En Route -->
+          <div id="stepCol3" class="flex flex-col items-center text-center space-y-2 relative z-10">
+            <div id="stepCircle3" class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 border border-slate-700 flex items-center justify-center font-bold text-xs transition-all">
+              3
+            </div>
+            <div>
+              <p id="stepTitle3" class="text-xs font-bold text-slate-400">Tech En Route</p>
+              <p id="stepSub3" class="text-[10px] text-slate-500 mt-0.5">Driver is on the way</p>
+            </div>
+          </div>
+
+          <!-- Step 4: Service Completed -->
+          <div id="stepCol4" class="flex flex-col items-center text-center space-y-2 relative z-10">
+            <div id="stepCircle4" class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 border border-slate-700 flex items-center justify-center font-bold text-xs transition-all">
+              4
+            </div>
+            <div>
+              <p id="stepTitle4" class="text-xs font-bold text-slate-400">Service Completed</p>
+              <p id="stepSub4" class="text-[10px] text-slate-500 mt-0.5">Work verified & closed</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Job Information Summary Card -->
+      <div id="liveJobDetailsCard" class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-3 text-xs">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800/80">
+          <div>
+            <span class="text-[10px] font-bold uppercase text-slate-500">Service Order Headline</span>
+            <p id="liveJobTitle" class="text-sm font-bold text-white mt-0.5">Loading order details...</p>
+          </div>
+          <div>
+            <span id="liveStatusBadge" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+              PENDING
+            </span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-slate-300">
+          <div>
+            <span class="text-slate-500 text-[10px] font-semibold">Customer / Site:</span>
+            <p id="liveCustomerName" class="font-medium text-white truncate">--</p>
+            <p id="liveCustomerAddress" class="text-[11px] text-slate-400 truncate">--</p>
+          </div>
+          <div>
+            <span class="text-slate-500 text-[10px] font-semibold">Assigned Specialist:</span>
+            <p id="liveTechName" class="font-bold text-white">Pending Dispatcher Assignment</p>
+            <p id="liveTechPhone" class="text-[11px] text-slate-400 font-mono">--</p>
+          </div>
+        </div>
+
+        <!-- Download PDF Certificate (Rendered when COMPLETED) -->
+        <div id="livePdfDownloadContainer" class="hidden pt-2 border-t border-slate-800">
+          <a
+            id="livePdfDownloadBtn"
+            href="#"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition inline-flex items-center justify-center space-x-2 cursor-pointer"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span>Download Official PDF Certificate</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Footer Telemetry -->
+      <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-800/80">
+        <span id="liveLastChecked" class="text-slate-500 text-[11px]">Connecting live stream...</span>
+        <button
+          type="button"
+          id="refreshLiveStatusBtn"
+          class="px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 font-semibold text-xs inline-flex items-center space-x-1.5 transition cursor-pointer"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <span>Refresh Now</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800 bg-slate-950 py-6 text-center text-xs text-slate-500">
+    <p>FieldOps Platform &bull; Real-Time Operations Telemetry & Field Service Engine &bull; Automated Resolution Dispatch</p>
+  </footer>
+
+  <script>
+    const bookingForm = document.getElementById('bookingForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const bookingError = document.getElementById('bookingError');
+    const confirmationCard = document.getElementById('confirmationCard');
+    const displayTrackingId = document.getElementById('displayTrackingId');
+    const displayCustomer = document.getElementById('displayCustomer');
+    const bookAnotherBtn = document.getElementById('bookAnotherBtn');
+    const trackStatusBtn = document.getElementById('trackStatusBtn');
+    const copyTrackingBtn = document.getElementById('copyTrackingBtn');
+    const introSubtitle = document.getElementById('introSubtitle');
+
+    const headerTrackBtn = document.getElementById('headerTrackBtn');
+    const topTrackBar = document.getElementById('topTrackBar');
+    const trackSearchForm = document.getElementById('trackSearchForm');
+    const trackSearchInput = document.getElementById('trackSearchInput');
+
+    const liveStatusModal = document.getElementById('liveStatusModal');
+    const closeLiveStatusBtn = document.getElementById('closeLiveStatusBtn');
+    const refreshLiveStatusBtn = document.getElementById('refreshLiveStatusBtn');
+    const liveModalTrackingId = document.getElementById('liveModalTrackingId');
+    const liveLastChecked = document.getElementById('liveLastChecked');
+
+    const downloadSlipBtnMain = document.getElementById('downloadSlipBtnMain');
+
+    let currentRawTrackingId = '';
+    let currentFormattedCode = '';
+    let sseSource = null;
+    let lastSubmittedData = null;
+    let currentJobData = null;
+
+    // Toggle Top Search Bar
+    if (headerTrackBtn && topTrackBar) {
+      headerTrackBtn.addEventListener('click', () => {
+        topTrackBar.classList.toggle('hidden');
+        if (!topTrackBar.classList.contains('hidden') && trackSearchInput) {
+          trackSearchInput.focus();
+        }
+      });
+    }
+
+    if (trackSearchForm) {
+      trackSearchForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const code = trackSearchInput.value.trim();
+        if (!code) return;
+        openTrackerForId(code);
+      });
+    }
+
+    // Copy Tracking ID button
+    const copyOriginalSvg = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>`;
+    const copyCheckmarkSvg = `<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>`;
+
+    copyTrackingBtn.addEventListener('click', async () => {
+      const codeToCopy = currentFormattedCode || displayTrackingId.textContent;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(codeToCopy);
+        } else {
+          const textarea = document.createElement('textarea');
+          textarea.value = codeToCopy;
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+        }
+        copyTrackingBtn.innerHTML = copyCheckmarkSvg;
+        copyTrackingBtn.setAttribute('title', 'Copied!');
+        setTimeout(() => {
+          copyTrackingBtn.innerHTML = copyOriginalSvg;
+          copyTrackingBtn.setAttribute('title', 'Copy Reference ID');
+        }, 1800);
+      } catch (err) {
+        console.error('Failed to copy code:', err);
+      }
+    });
+
+    // Generate & Print/Download Official Service Request Intake Slip
+    function generateServiceSlip() {
+      const cleanCode = (currentFormattedCode || (currentRawTrackingId ? currentRawTrackingId.replace(/-/g, '').substring(0, 8).toUpperCase() : '') || (displayTrackingId && displayTrackingId.textContent !== '--' ? displayTrackingId.textContent : '')).replace(/^#/, '').trim() || 'PENDING';
+      const ticketId = cleanCode;
+
+      const customerName = (lastSubmittedData && lastSubmittedData.customerName)
+        || (document.getElementById('customerName') && document.getElementById('customerName').value.trim())
+        || (currentJobData && currentJobData.customerName)
+        || (displayCustomer && displayCustomer.textContent !== '--' ? displayCustomer.textContent : 'Valued Customer');
+
+      const customerPhone = (lastSubmittedData && lastSubmittedData.customerPhone)
+        || (document.getElementById('customerPhone') && document.getElementById('customerPhone').value.trim())
+        || (currentJobData && currentJobData.customerPhone)
+        || 'Not Provided';
+
+      const customerEmail = (lastSubmittedData && lastSubmittedData.customerEmail)
+        || (document.getElementById('customerEmail') && document.getElementById('customerEmail').value.trim())
+        || (currentJobData && currentJobData.customerEmail)
+        || 'Not Provided';
+
+      const serviceAddress = (lastSubmittedData && lastSubmittedData.customerAddress)
+        || (document.getElementById('customerAddress') && document.getElementById('customerAddress').value.trim())
+        || (currentJobData && currentJobData.customerAddress)
+        || 'Customer Location';
+
+      const serviceTitle = (lastSubmittedData && lastSubmittedData.title)
+        || (document.getElementById('title') && document.getElementById('title').value.trim())
+        || (currentJobData && currentJobData.title)
+        || 'Field Service Visit';
+
+      const priority = (lastSubmittedData && lastSubmittedData.priority)
+        || (document.getElementById('priority') && document.getElementById('priority').value)
+        || (currentJobData && currentJobData.priority)
+        || 'STANDARD';
+
+      const receiptHtmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <title>FieldOps Service Intake Slip - #${ticketId}</title>
+  <style>
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    @page {
+      margin: 15mm;
+      background-color: #0b1329;
+    }
+    body {
+      background-color: #0b1329 !important;
+      color: #f8fafc !important;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .card {
+      max-width: 480px;
+      width: 100%;
+      background: #111d38 !important;
+      border: 1px solid #1e293b !important;
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    .brand { text-align: center; font-size: 20px; font-weight: 700; color: #38bdf8; margin-bottom: 20px; }
+    .check-badge { width: 50px; height: 50px; background: #064e3b; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; color: #34d399; font-size: 24px; font-weight: bold; }
+    .title { text-align: center; font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .subtitle { text-align: center; font-size: 13px; color: #94a3b8; line-height: 1.5; margin-bottom: 24px; }
+    .details-box {
+      background: #0b1329 !important;
+      border: 1px solid #1e293b !important;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #1e293b;
+      font-size: 13px;
+    }
+    .row:last-child { border-bottom: none; }
+    .label { color: #94a3b8; text-transform: uppercase; font-size: 11px; font-weight: 600; }
+    .value { font-weight: 600; color: #f8fafc; text-align: right; }
+    .ref-code { color: #34d399 !important; font-family: monospace; font-size: 14px; font-weight: 700; }
+    .status { color: #f59e0b !important; font-weight: 700; }
+    .footer-note { text-align: center; font-size: 11px; color: #64748b; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">&#9889; FieldOps Platform</div>
+    <div class="check-badge">&#10003;</div>
+    <div class="title">Service Request Confirmed!</div>
+    <div class="subtitle">Your request has been broadcasted to the FieldOps Dispatch Operations Console.</div>
+    <div class="details-box">
+      <div class="row">
+        <span class="label">Tracking Reference:</span>
+        <span class="value ref-code">#${ticketId}</span>
+      </div>
+      <div class="row">
+        <span class="label">Customer Name:</span>
+        <span class="value">${customerName}</span>
+      </div>
+      <div class="row">
+        <span class="label">Contact Phone:</span>
+        <span class="value">${customerPhone}</span>
+      </div>
+      <div class="row">
+        <span class="label">Service Location:</span>
+        <span class="value">${serviceAddress}</span>
+      </div>
+      <div class="row">
+        <span class="label">Service Title:</span>
+        <span class="value">${serviceTitle}</span>
+      </div>
+      <div class="row">
+        <span class="label">Status:</span>
+        <span class="value status">&#9679; PENDING DISPATCH</span>
+      </div>
+    </div>
+    <div class="footer-note">Please retain this reference code to track technician dispatch progress live.</div>
+  </div>
+</body>
+</html>`;
+
+      let printFrame = document.getElementById('receiptPrintFrame');
+      if (!printFrame) {
+        printFrame = document.createElement('iframe');
+        printFrame.id = 'receiptPrintFrame';
+        printFrame.style.position = 'fixed';
+        printFrame.style.right = '0';
+        printFrame.style.bottom = '0';
+        printFrame.style.width = '0';
+        printFrame.style.height = '0';
+        printFrame.style.border = '0';
+        document.body.appendChild(printFrame);
+      }
+      const doc = printFrame.contentWindow.document;
+      doc.open();
+      doc.write(receiptHtmlContent);
+      doc.close();
+      printFrame.contentWindow.focus();
+      setTimeout(() => {
+        printFrame.contentWindow.print();
+      }, 300);
+    }
+
+    if (downloadSlipBtnMain) {
+      downloadSlipBtnMain.addEventListener('click', generateServiceSlip);
+    }
+
+    // Fetch Job Status from GET /api/jobs/${id}
+    async function fetchJobStatus(queryId) {
+      if (!queryId) return null;
+      const cleanId = String(queryId).trim().replace(/^#/, '');
+
+      try {
+        let job = null;
+        // 1. Direct query against GET /api/jobs/${cleanId}
+        try {
+          const res = await fetch(`/api/jobs/${cleanId}`);
+          if (res.ok) {
+            job = await res.json();
+          }
+        } catch (_) {}
+
+        // 2. Fallback to /api/public/requests/${cleanId}
+        if (!job) {
+          try {
+            const pubRes = await fetch(`/api/public/requests/${cleanId}`);
+            if (pubRes.ok) {
+              const data = await pubRes.json();
+              job = data.job || data;
+            }
+          } catch (_) {}
+        }
+
+        if (job) {
+          currentRawTrackingId = job.id;
+          currentFormattedCode = `#${job.id.replace(/-/g, '').substring(0, 8).toUpperCase()}`;
+          liveModalTrackingId.textContent = currentFormattedCode;
+          update4StepTracker(job);
+          liveLastChecked.textContent = `Updated ${new Date().toLocaleTimeString()}`;
+          return job;
+        } else {
+          alert('Service order reference not found. Please verify the 8-character ID.');
+          return null;
+        }
+      } catch (err) {
+        console.error('Error fetching status:', err);
+        return null;
+      }
+    }
+
+    // Subscribe to SSE events filtering for job.id === trackingId
+    function subscribeToEvents(targetId) {
+      if (!targetId) return;
+      if (sseSource) {
+        try { sseSource.close(); } catch (_) {}
+      }
+
+      try {
+        sseSource = new EventSource('/api/events');
+        const sseBadge = document.getElementById('liveSseBadge');
+
+        sseSource.onopen = () => {
+          if (sseBadge) {
+            sseBadge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+            sseBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1 animate-ping"></span>Live SSE';
+          }
+        };
+
+        sseSource.onerror = () => {
+          if (sseBadge) {
+            sseBadge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-700 text-slate-400 border border-slate-600';
+            sseBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-slate-400 mr-1"></span>Polling';
+          }
+        };
+
+        const handleLiveUpdate = (evt) => {
+          try {
+            const updated = JSON.parse(evt.data);
+            if (updated && (updated.id === targetId || (targetId && updated.id.replace(/-/g, '').toLowerCase().startsWith(targetId.replace(/[^a-zA-Z0-9]/g, '').toLowerCase())))) {
+              fetchJobStatus(targetId);
+            }
+          } catch (e) {}
+        };
+
+        sseSource.addEventListener('JOB_UPDATED', handleLiveUpdate);
+        sseSource.addEventListener('JOB_CREATED', handleLiveUpdate);
+        sseSource.onmessage = handleLiveUpdate;
+      } catch (err) {
+        console.warn('SSE subscription error:', err);
+      }
+    }
+
+    // Update 4-step horizontal progress tracker
+    function update4StepTracker(job) {
+      currentJobData = job;
+      const progressBar = document.getElementById('trackerProgressBar');
+      const stepCircle1 = document.getElementById('stepCircle1');
+      const stepTitle1 = document.getElementById('stepTitle1');
+      const stepSub1 = document.getElementById('stepSub1');
+
+      const stepCircle2 = document.getElementById('stepCircle2');
+      const stepTitle2 = document.getElementById('stepTitle2');
+      const stepSub2 = document.getElementById('stepSub2');
+
+      const stepCircle3 = document.getElementById('stepCircle3');
+      const stepTitle3 = document.getElementById('stepTitle3');
+      const stepSub3 = document.getElementById('stepSub3');
+
+      const stepCircle4 = document.getElementById('stepCircle4');
+      const stepTitle4 = document.getElementById('stepTitle4');
+      const stepSub4 = document.getElementById('stepSub4');
+
+      const liveJobTitle = document.getElementById('liveJobTitle');
+      const liveCustomerName = document.getElementById('liveCustomerName');
+      const liveCustomerAddress = document.getElementById('liveCustomerAddress');
+      const liveTechName = document.getElementById('liveTechName');
+      const liveTechPhone = document.getElementById('liveTechPhone');
+      const liveStatusBadge = document.getElementById('liveStatusBadge');
+      const livePdfDownloadContainer = document.getElementById('livePdfDownloadContainer');
+      const livePdfDownloadBtn = document.getElementById('livePdfDownloadBtn');
+
+      if (liveJobTitle) liveJobTitle.textContent = job.title || 'Service Work Order';
+      if (liveCustomerName) liveCustomerName.textContent = job.customerName || '--';
+      if (liveCustomerAddress) liveCustomerAddress.textContent = job.customerAddress || '--';
+      if (liveTechName) {
+        liveTechName.textContent = job.technician ? job.technician.name : 'Pending Dispatcher Assignment';
+      }
+      if (liveTechPhone) {
+        liveTechPhone.textContent = job.technician && job.technician.phone ? job.technician.phone : '--';
+      }
+
+      const isAssigned = Boolean(job.technicianId || job.technician);
+      const status = job.status || 'PENDING';
+
+      // Step 1: Request Received
+      stepCircle1.className = 'w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shadow-lg shadow-emerald-500/20';
+      stepCircle1.textContent = '✓';
+      stepTitle1.className = 'text-xs font-bold text-white';
+      stepSub1.textContent = 'Pending Dispatch';
+      stepSub1.className = 'text-[10px] text-emerald-400 mt-0.5';
+
+      if (status === 'COMPLETED') {
+        if (progressBar) progressBar.style.width = '100%';
+
+        // Step 2: Tech Assigned
+        stepCircle2.className = 'w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shadow-lg shadow-emerald-500/20';
+        stepCircle2.textContent = '✓';
+        stepTitle2.className = 'text-xs font-bold text-white';
+        stepSub2.textContent = job.technician ? job.technician.name : 'Assigned';
+        stepSub2.className = 'text-[10px] text-slate-300 mt-0.5';
+
+        // Step 3: Tech En Route
+        stepCircle3.className = 'w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shadow-lg shadow-emerald-500/20';
+        stepCircle3.textContent = '✓';
+        stepTitle3.className = 'text-xs font-bold text-white';
+        stepSub3.textContent = 'Driver is on the way';
+        stepSub3.className = 'text-[10px] text-slate-300 mt-0.5';
+
+        // Step 4: Service Completed
+        stepCircle4.className = 'w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shadow-lg shadow-emerald-500/20';
+        stepCircle4.textContent = '✓';
+        stepTitle4.className = 'text-xs font-bold text-white';
+        stepSub4.textContent = 'Work verified & closed';
+        stepSub4.className = 'text-[10px] text-emerald-400 mt-0.5 font-semibold';
+
+        if (liveStatusBadge) {
+          liveStatusBadge.className = 'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+          liveStatusBadge.textContent = 'COMPLETED';
+        }
+
+        if (livePdfDownloadContainer) livePdfDownloadContainer.classList.remove('hidden');
+        if (livePdfDownloadBtn) livePdfDownloadBtn.href = `/api/jobs/${job.id}/pdf`;
+
+      } else if (status === 'IN_PROGRESS' || status === 'EN_ROUTE') {
+        if (progressBar) progressBar.style.width = '66%';
+
+        // Step 2: Tech Assigned
+        stepCircle2.className = 'w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shadow-lg shadow-emerald-500/20';
+        stepCircle2.textContent = '✓';
+        stepTitle2.className = 'text-xs font-bold text-white';
+        stepSub2.textContent = job.technician ? job.technician.name : 'Assigned';
+        stepSub2.className = 'text-[10px] text-slate-300 mt-0.5';
+
+        // Step 3: Tech En Route
+        stepCircle3.className = 'w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-lg shadow-blue-600/30 animate-pulse';
+        stepCircle3.textContent = '⚡';
+        stepTitle3.className = 'text-xs font-bold text-white';
+        stepSub3.textContent = status === 'IN_PROGRESS' ? 'Technician on-site' : 'Driver is on the way';
+        stepSub3.className = 'text-[10px] text-blue-400 mt-0.5 font-semibold';
+
+        // Step 4: Service Completed
+        stepCircle4.className = 'w-8 h-8 rounded-full bg-slate-800 text-slate-400 border border-slate-700 flex items-center justify-center font-bold text-xs';
+        stepCircle4.textContent = '4';
+        stepTitle4.className = 'text-xs font-bold text-slate-400';
+        stepSub4.textContent = 'Work verified & closed';
+        stepSub4.className = 'text-[10px] text-slate-500 mt-0.5';
+
+        if (liveStatusBadge) {
+          liveStatusBadge.className = 'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30';
+          liveStatusBadge.textContent = status === 'IN_PROGRESS' ? 'IN PROGRESS' : 'EN ROUTE';
+        }
+
+        if (livePdfDownloadContainer) livePdfDownloadContainer.classList.add('hidden');
+
+      } else if (isAssigned || status === 'ASSIGNED') {
+        if (progressBar) progressBar.style.width = '33%';
+
+        // Step 2: Tech Assigned
+        stepCircle2.className = 'w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shadow-lg shadow-emerald-500/20';
+        stepCircle2.textContent = '✓';
+        stepTitle2.className = 'text-xs font-bold text-white';
+        stepSub2.textContent = job.technician ? job.technician.name : 'Assigned';
+        stepSub2.className = 'text-[10px] text-emerald-400 mt-0.5';
+
+        // Step 3: Tech En Route
+        stepCircle3.className = 'w-8 h-8 rounded-full bg-slate-800 text-slate-400 border border-slate-700 flex items-center justify-center font-bold text-xs';
+        stepCircle3.textContent = '3';
+        stepTitle3.className = 'text-xs font-bold text-slate-400';
+        stepSub3.textContent = 'Driver is on the way';
+        stepSub3.className = 'text-[10px] text-slate-500 mt-0.5';
+
+        // Step 4: Service Completed
+        stepCircle4.className = 'w-8 h-8 rounded-full bg-slate-800 text-slate-400 border border-slate-700 flex items-center justify-center font-bold text-xs';
+        stepCircle4.textContent = '4';
+        stepTitle4.className = 'text-xs font-bold text-slate-400';
+        stepSub4.textContent = 'Work verified & closed';
+        stepSub4.className = 'text-[10px] text-slate-500 mt-0.5';
+
+        if (liveStatusBadge) {
+          liveStatusBadge.className = 'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30';
+          liveStatusBadge.textContent = 'ASSIGNED';
+        }
+
+        if (livePdfDownloadContainer) livePdfDownloadContainer.classList.add('hidden');
+
+      } else {
+        if (progressBar) progressBar.style.width = '0%';
+
+        // Step 2: Tech Assigned
+        stepCircle2.className = 'w-8 h-8 rounded-full bg-slate-800 text-slate-400 border border-slate-700 flex items-center justify-center font-bold text-xs';
+        stepCircle2.textContent = '2';
+        stepTitle2.className = 'text-xs font-bold text-slate-400';
+        stepSub2.textContent = 'Awaiting staff';
+        stepSub2.className = 'text-[10px] text-slate-500 mt-0.5';
+
+        // Step 3: Tech En Route
+        stepCircle3.className = 'w-8 h-8 rounded-full bg-slate-800 text-slate-400 border border-slate-700 flex items-center justify-center font-bold text-xs';
+        stepCircle3.textContent = '3';
+        stepTitle3.className = 'text-xs font-bold text-slate-400';
+        stepSub3.textContent = 'Driver is on the way';
+        stepSub3.className = 'text-[10px] text-slate-500 mt-0.5';
+
+        // Step 4: Service Completed
+        stepCircle4.className = 'w-8 h-8 rounded-full bg-slate-800 text-slate-400 border border-slate-700 flex items-center justify-center font-bold text-xs';
+        stepCircle4.textContent = '4';
+        stepTitle4.className = 'text-xs font-bold text-slate-400';
+        stepSub4.textContent = 'Work verified & closed';
+        stepSub4.className = 'text-[10px] text-slate-500 mt-0.5';
+
+        if (liveStatusBadge) {
+          liveStatusBadge.className = 'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30';
+          liveStatusBadge.textContent = 'PENDING';
+        }
+
+        if (livePdfDownloadContainer) livePdfDownloadContainer.classList.add('hidden');
+      }
+
+      // Sync confirmation card pill if visible
+      const displayStatus = document.getElementById('displayStatus');
+      if (displayStatus) {
+        if (status === 'COMPLETED') {
+          displayStatus.className = 'inline-flex items-center text-emerald-400 font-bold';
+          displayStatus.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 mr-1.5"></span>COMPLETED / RESOLVED`;
+        } else if (status === 'IN_PROGRESS') {
+          displayStatus.className = 'inline-flex items-center text-amber-400 font-bold';
+          displayStatus.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 mr-1.5 animate-pulse"></span>IN PROGRESS`;
+        } else if (status === 'EN_ROUTE') {
+          displayStatus.className = 'inline-flex items-center text-blue-400 font-bold';
+          displayStatus.innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-400 mr-1.5 animate-pulse"></span>EN ROUTE`;
+        } else if (isAssigned) {
+          const name = job.technician ? job.technician.name : 'Specialist';
+          displayStatus.className = 'inline-flex items-center text-blue-400 font-bold';
+          displayStatus.innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-400 mr-1.5 animate-pulse"></span>ASSIGNED (${name})`;
+        } else {
+          displayStatus.className = 'inline-flex items-center text-amber-400 font-bold';
+          displayStatus.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 mr-1.5 animate-pulse"></span>PENDING DISPATCH`;
+        }
+      }
+    }
+
+    // Open Tracker modal for a given tracking or job ID
+    async function openTrackerForId(targetId) {
+      if (!targetId) return;
+      liveModalTrackingId.textContent = targetId.startsWith('#') ? targetId.toUpperCase() : '#' + targetId.toUpperCase();
+      liveStatusModal.classList.remove('hidden');
+      const job = await fetchJobStatus(targetId);
+      if (job) {
+        subscribeToEvents(job.id);
+      }
+    }
+
+    trackStatusBtn.addEventListener('click', () => {
+      openTrackerForId(currentRawTrackingId || currentFormattedCode);
+    });
+
+    closeLiveStatusBtn.addEventListener('click', () => {
+      liveStatusModal.classList.add('hidden');
+    });
+
+    liveStatusModal.addEventListener('click', (e) => {
+      if (e.target === liveStatusModal) {
+        liveStatusModal.classList.add('hidden');
+      }
+    });
+
+    refreshLiveStatusBtn.addEventListener('click', () => {
+      if (currentRawTrackingId) {
+        fetchJobStatus(currentRawTrackingId);
+      }
+    });
+
+    bookingForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      bookingError.classList.add('hidden');
+
+      const payload = {
+        customerName: document.getElementById('customerName').value.trim(),
+        customerPhone: document.getElementById('customerPhone').value.trim(),
+        customerEmail: document.getElementById('customerEmail').value.trim() || undefined,
+        customerAddress: document.getElementById('customerAddress').value.trim(),
+        title: document.getElementById('title').value.trim(),
+        description: document.getElementById('description').value.trim(),
+        priority: document.getElementById('priority').value,
+      };
+
+      const originalBtnText = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `
+        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span>Transmitting Request...</span>
+      `;
+
+      try {
+        const response = await fetch('/api/public/requests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Failed to submit request');
+        }
+
+        const rawTrackingId = data.trackingId || data.job?.id || '';
+        currentRawTrackingId = rawTrackingId;
+        currentFormattedCode = `#${rawTrackingId ? rawTrackingId.replace(/-/g, '').substring(0, 8).toUpperCase() : 'PENDING'}`;
+        displayTrackingId.textContent = currentFormattedCode;
+        displayCustomer.textContent = payload.customerName;
+
+        lastSubmittedData = {
+          customerName: payload.customerName,
+          customerPhone: payload.customerPhone,
+          customerEmail: payload.customerEmail,
+          customerAddress: payload.customerAddress,
+          title: payload.title,
+          description: payload.description,
+          priority: payload.priority,
+          trackingId: currentFormattedCode,
+          rawId: rawTrackingId,
+          date: new Date()
+        };
+
+        // Start SSE subscription for this newly created order
+        subscribeToEvents(rawTrackingId);
+
+        // Hide form and introductory subtitle to prevent text bleed
+        bookingForm.classList.add('hidden');
+        if (introSubtitle) introSubtitle.classList.add('hidden');
+        confirmationCard.classList.remove('hidden');
+      } catch (err) {
+        console.error('Submission error:', err);
+        bookingError.textContent = err.message || 'Unable to connect to service dispatch server. Please try again.';
+        bookingError.classList.remove('hidden');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+      }
+    });
+
+    bookAnotherBtn.addEventListener('click', () => {
+      bookingForm.reset();
+      lastSubmittedData = null;
+      confirmationCard.classList.add('hidden');
+      if (introSubtitle) introSubtitle.classList.remove('hidden');
+      bookingForm.classList.remove('hidden');
+    });
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  fieldops-backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: fieldops-backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./server/prisma:/app/prisma
+    env_file:
+      - ./server/.env
+    restart: unless-stopped
+

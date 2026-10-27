@@ -3,19 +3,22 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("TECHNICIAN") // DISPATCHER | TECHNICIAN
-  phone     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String    @id @default(uuid())
+  name               String
+  email              String    @unique
+  password           String
+  role               String    @default("TECHNICIAN") // DISPATCHER | TECHNICIAN
+  phone              String?
+  lastKnownLat       Float?
+  lastKnownLng       Float?
+  lastLocationUpdate DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   assignedJobs Job[] @relation("TechnicianJobs")
 }
@@ -23,10 +26,11 @@ model User {
 model Job {
   id              String    @id @default(uuid())
   title           String
-  description     String
+  description     String    @db.Text
   customerName    String
+  customerEmail   String?
   customerPhone   String
-  customerAddress String
+  customerAddress String    @db.Text
   latitude        Float?
   longitude       Float?
   priority        String    @default("MEDIUM") // LOW | MEDIUM | HIGH | EMERGENCY
@@ -37,10 +41,30 @@ model Job {
   clientUpdatedAt DateTime?
   syncedAt        DateTime?
 
+  // Live GPS tracking
+  lastKnownLat       Float?
+  lastKnownLng       Float?
+  lastLocationUpdate DateTime?
+
   // Completion artifacts
-  completionNotes String?
-  signatureData   String?
-  completedAt     DateTime?
+  completionNotes     String?   @db.Text
+  completionEmailSent Boolean   @default(false)
+  signatureData       String?   @db.Text
+  signatureSvg        String?   @db.Text
+  completedAt         DateTime?
+  completedLatitude   Float?
+  completedLongitude  Float?
+  beforePhotoUrl      String?   @db.Text
+  afterPhotoUrl       String?   @db.Text
+  materialsUsed       String?   @db.Text
+
+  // Financial & On-Spot Settlement Fields
+  laborCost          Float     @default(50.0)
+  customServices     String?   @db.Text // JSON array string: [{ "description": string, "amount": number }]
+  totalAmount        Float     @default(50.0)
+  paymentStatus      String    @default("UNPAID") // UNPAID | PAID
+  paymentMethod      String?   // CASH_ON_SITE | ONLINE_TRANSFER
+  paymentNotes       String?   @db.Text // e.g., cash receiver note or bank reference code
 
   // Relations
   technicianId    String?
@@ -48,4 +72,29 @@ model Job {
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+}
+
+model InventoryItem {
+  id              String   @id @default(uuid())
+  name            String
+  sku             String   @unique
+  unitCost        Float
+  quantityInStock Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model IdempotencyRecord {
+  id              String   @id @default(uuid())
+  key             String   @unique
+  mutationType    String
+  jobId           String?
+  responsePayload String   @db.Text
+  createdAt       DateTime @default(now())
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String   @db.Text
+  updatedAt DateTime @default(now()) @updatedAt
 }

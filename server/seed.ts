@@ -1,20 +1,34 @@
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding initial technician and jobs...');
+  console.log('Seeding initial dispatcher, technician, and jobs...');
 
   // Clean old records
   await prisma.job.deleteMany();
   await prisma.user.deleteMany();
 
-  // 1. Create a Technician User
+  const hashedPassword = await bcrypt.hash('password123', 10);
+
+  // 1. Create a Dispatcher User
+  await prisma.user.create({
+    data: {
+      name: 'Operations Dispatcher',
+      email: 'dispatcher@fieldops.com',
+      password: hashedPassword,
+      role: 'DISPATCHER',
+      phone: '+92 300 0000000',
+    },
+  });
+
+  // 2. Create a Technician User
   const technician = await prisma.user.create({
     data: {
       name: 'Muhammad Qasim',
       email: 'tech@fieldops.com',
-      password: 'password123',
+      password: hashedPassword,
       role: 'TECHNICIAN',
       phone: '+92 300 1234567',
     },
