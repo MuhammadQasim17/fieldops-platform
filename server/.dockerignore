@@ -1,6 +1,10 @@
 node_modules
-dist
-.git
-.env
 npm-debug.log
-
+dist
+.env
+.git
+.gitignore
+.agents
+.claude
+.cursor
+.devin
