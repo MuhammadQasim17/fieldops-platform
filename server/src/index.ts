@@ -173,7 +173,11 @@ getTransporter()
     console.warn('[Server] SMTP startup verification error:', err);
   });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server listening on http://0.0.0.0:${PORT}`);
-  console.log(`Web Dispatcher Dashboard available at http://localhost:${PORT}/dashboard`);
-});
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server listening on http://0.0.0.0:${PORT}`);
+    console.log(`Web Dispatcher Dashboard available at http://localhost:${PORT}/dashboard`);
+  });
+}
+
+export default app;
