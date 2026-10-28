@@ -79,9 +79,21 @@ export const getJobs = async (req: Request, res: Response) => {
           ? job.laborCost
           : defaultLabor;
 
+      const staffDetails = job.technician
+        ? {
+            ...job.technician,
+            fullName: job.technician.name,
+          }
+        : null;
+
+      const staffId = job.technicianId || job.technician?.id || null;
+
       return {
         ...job,
-        assignedTechId: job.technicianId || job.technician?.id || null,
+        assignedTechId: staffId,
+        assignedStaffId: staffId,
+        assignedStaff: staffDetails,
+        assignedUser: staffDetails,
         laborCost,
       };
     });
@@ -129,6 +141,9 @@ export const createJob = async (req: Request, res: Response) => {
       else sanitizedPriority = 'MEDIUM';
     }
 
+    const rawTechId =
+      req.body.assignedStaffId || req.body.assignedTechId || technicianId || undefined;
+
     const newJob = await prisma.job.create({
       data: {
         title,
@@ -139,7 +154,7 @@ export const createJob = async (req: Request, res: Response) => {
         customerEmail: resolvedCustomerEmail,
         priority: sanitizedPriority,
         status: 'PENDING',
-        technicianId: technicianId || undefined,
+        technicianId: rawTechId || undefined,
         latitude: latitude ? parseFloat(latitude) : undefined,
         longitude: longitude ? parseFloat(longitude) : undefined,
         laborCost: resolvedLaborCost,
@@ -152,10 +167,26 @@ export const createJob = async (req: Request, res: Response) => {
       },
     });
 
-    broadcastEvent('JOB_CREATED', newJob);
-    broadcastEvent('JOB_ASSIGNED', newJob);
-    broadcastEvent('JOB_UPDATED', newJob);
-    broadcastEvent('NEW_JOB', newJob);
+    const staffDetails = newJob.technician
+      ? {
+          ...newJob.technician,
+          fullName: newJob.technician.name,
+        }
+      : null;
+    const staffId = newJob.technicianId || newJob.technician?.id || null;
+
+    const formattedJob = {
+      ...newJob,
+      assignedTechId: staffId,
+      assignedStaffId: staffId,
+      assignedStaff: staffDetails,
+      assignedUser: staffDetails,
+    };
+
+    broadcastEvent('JOB_CREATED', formattedJob);
+    broadcastEvent('JOB_ASSIGNED', formattedJob);
+    broadcastEvent('JOB_UPDATED', formattedJob);
+    broadcastEvent('NEW_JOB', formattedJob);
 
     // Dispatch confirmation email asynchronously so HTTP response returns immediately without hanging
     if (resolvedCustomerEmail) {
@@ -164,7 +195,7 @@ export const createJob = async (req: Request, res: Response) => {
         .catch((err) => console.error('[Job Created] Email error:', err));
     }
 
-    return res.status(201).json({ success: true, job: newJob, ...newJob });
+    return res.status(201).json({ success: true, job: formattedJob, ...formattedJob });
   } catch (error: any) {
     console.error('Error creating job:', error);
     const statusCode = error?.statusCode || error?.status || 500;
@@ -214,9 +245,20 @@ export const getJobById = async (req: Request, res: Response) => {
         ? job.laborCost
         : defaultLabor;
 
+    const staffDetails = job.technician
+      ? {
+          ...job.technician,
+          fullName: job.technician.name,
+        }
+      : null;
+    const staffId = job.technicianId || job.technician?.id || null;
+
     res.json({
       ...job,
-      assignedTechId: job.technicianId || job.technician?.id || null,
+      assignedTechId: staffId,
+      assignedStaffId: staffId,
+      assignedStaff: staffDetails,
+      assignedUser: staffDetails,
       laborCost: resolvedLaborCost,
     });
   } catch (error) {
@@ -322,7 +364,12 @@ export const updateJob = async (req: Request, res: Response) => {
       finalNotes = notes && notes.trim().length > 0 ? notes.trim() : null;
     }
 
-    const rawTechId = req.body.assignedTechId !== undefined ? req.body.assignedTechId : technicianId;
+    const rawTechId =
+      req.body.assignedStaffId !== undefined
+        ? req.body.assignedStaffId
+        : req.body.assignedTechId !== undefined
+        ? req.body.assignedTechId
+        : technicianId;
     const resolvedTechnicianId = rawTechId !== undefined ? (rawTechId || null) : undefined;
     const previousTechId = existingWorkOrder.technicianId;
 
@@ -513,26 +560,41 @@ export const updateJob = async (req: Request, res: Response) => {
         });
     }
 
+    const staffDetails = updatedJob.technician
+      ? {
+          ...updatedJob.technician,
+          fullName: updatedJob.technician.name,
+        }
+      : null;
+    const staffId = updatedJob.technicianId || updatedJob.technician?.id || null;
+
+    const formattedUpdatedJob = {
+      ...updatedJob,
+      assignedTechId: staffId,
+      assignedStaffId: staffId,
+      assignedStaff: staffDetails,
+      assignedUser: staffDetails,
+      is_synced: true,
+      pending_sync: false,
+    };
+
     if (resolvedTechnicianId !== undefined) {
       const reassignmentPayload = {
         jobId: id,
         assignedTechId: resolvedTechnicianId,
+        assignedStaffId: resolvedTechnicianId,
         previousTechId,
-        job: updatedJob,
-        ...updatedJob,
+        job: formattedUpdatedJob,
+        ...formattedUpdatedJob,
       };
       broadcastEvent('JOB_REASSIGNED', reassignmentPayload);
       broadcastEvent('JOB_UPDATED', reassignmentPayload);
-      broadcastEvent('JOB_ASSIGNED', updatedJob);
+      broadcastEvent('JOB_ASSIGNED', formattedUpdatedJob);
     } else {
-      broadcastEvent('JOB_UPDATED', updatedJob);
+      broadcastEvent('JOB_UPDATED', formattedUpdatedJob);
     }
 
-    res.json({
-      ...updatedJob,
-      is_synced: true,
-      pending_sync: false,
-    });
+    res.json(formattedUpdatedJob);
   } catch (error) {
     console.error('Error updating job:', error);
     res.status(500).json({ error: 'Failed to update job' });

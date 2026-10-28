@@ -1886,6 +1886,40 @@
       }
     }
 
+    // Helper: Normalize assigned staff information across all schema variations
+    function getAssignedStaffInfo(job) {
+      if (!job) return { id: '', name: '', phone: '', role: 'TECHNICIAN', isFormer: false };
+
+      const id = job.technicianId ||
+                 job.assignedTechId ||
+                 job.assignedStaffId ||
+                 job.technician?.id ||
+                 job.assignedStaff?.id ||
+                 job.assignedUser?.id ||
+                 '';
+
+      const staffObj = job.technician || job.assignedStaff || job.assignedUser || null;
+      const inRoster = id && Array.isArray(currentTechnicians) ? currentTechnicians.find((t) => t.id === id) : null;
+
+      const rawName = staffObj?.name ||
+                      staffObj?.fullName ||
+                      inRoster?.name ||
+                      inRoster?.fullName ||
+                      '';
+
+      const name = typeof rawName === 'string' ? rawName.trim() : '';
+
+      const rawPhone = staffObj?.phone ||
+                       inRoster?.phone ||
+                       '';
+      const phone = typeof rawPhone === 'string' ? rawPhone.trim() : '';
+
+      const role = staffObj?.role || inRoster?.role || 'TECHNICIAN';
+      const isFormer = staffObj?.role === 'DEACTIVATED' || inRoster?.role === 'DEACTIVATED';
+
+      return { id, name, phone, role, isFormer };
+    }
+
     // Toast Notification Helper
     function showToast(message, title = 'Success', isError = false) {
       // Suppress top pop-up toast/alert banners when jobs are assigned or modified
@@ -1968,6 +2002,7 @@
         if (!res.ok) throw new Error('Failed to fetch team members');
         currentTechnicians = await res.json();
         populateTechniciansDropdown();
+        renderJobsTable();
         if (teamDirectoryModal && !teamDirectoryModal.classList.contains('hidden')) {
           renderTeamDirectory();
         }
@@ -2230,11 +2265,16 @@
         const updatedJob = await res.json();
         const idx = currentJobs.findIndex((j) => j.id === jobId);
         if (idx !== -1) {
+          const techResolved = updatedJob.technician || updatedJob.assignedStaff || updatedJob.assignedUser || targetTech;
           currentJobs[idx] = {
             ...currentJobs[idx],
             ...updatedJob,
             technicianId: newTechId,
-            technician: updatedJob.technician || targetTech,
+            assignedTechId: newTechId,
+            assignedStaffId: newTechId,
+            technician: techResolved,
+            assignedStaff: techResolved,
+            assignedUser: techResolved,
           };
           renderJobsTable();
           recalculateKpisFromCurrentJobs();
@@ -2259,13 +2299,14 @@
       const filtered = currentJobs.filter((job) => {
         const matchesStatus = activeStatusFilter === 'ALL' || job.status === activeStatusFilter;
         const matchesPriority = activePriorityFilter === 'ALL' || job.priority === activePriorityFilter;
+        const staffInfo = getAssignedStaffInfo(job);
         const matchesSearch =
           !q ||
-          job.title.toLowerCase().includes(q) ||
-          job.description.toLowerCase().includes(q) ||
-          job.customerName.toLowerCase().includes(q) ||
-          job.customerAddress.toLowerCase().includes(q) ||
-          (job.technician && job.technician.name.toLowerCase().includes(q));
+          (job.title && job.title.toLowerCase().includes(q)) ||
+          (job.description && job.description.toLowerCase().includes(q)) ||
+          (job.customerName && job.customerName.toLowerCase().includes(q)) ||
+          (job.customerAddress && job.customerAddress.toLowerCase().includes(q)) ||
+          (staffInfo.name && staffInfo.name.toLowerCase().includes(q));
 
         return matchesStatus && matchesPriority && matchesSearch;
       }).sort((a, b) => {
@@ -2291,37 +2332,62 @@
       jobsTableBody.innerHTML = filtered
         .map((job) => {
           const isActive = ['PENDING', 'IN_PROGRESS', 'EN_ROUTE'].includes(job.status);
-          const currentAssignedId = job.technicianId || (job.technician && job.technician.id) || '';
+          const staffInfo = getAssignedStaffInfo(job);
+          const currentAssignedId = staffInfo.id;
+          const assignedStaffName = staffInfo.name;
+          const assignedStaffPhone = staffInfo.phone;
+          const assignedStaffRole = staffInfo.role;
+          const isFormer = staffInfo.isFormer;
+
           let techStaffHtml = '';
           let optionsHtml = '';
           if (isActive) {
             optionsHtml = currentTechnicians.map((t) => {
-              const isSelected = t.id === currentAssignedId ? 'selected' : '';
+              const isSelected = (currentAssignedId && t.id === currentAssignedId) ? 'selected' : '';
               const roleLabel = getRoleLabel(t.role);
               return `<option value="${t.id}" ${isSelected}>${escapeHtml(t.name)} (${roleLabel})</option>`;
             }).join('');
 
+            // If a technician is assigned to this order, ensure an option exists and is selected
+            if (currentAssignedId && assignedStaffName && !currentTechnicians.some((t) => t.id === currentAssignedId)) {
+              const roleLabel = getRoleLabel(assignedStaffRole);
+              optionsHtml = `<option value="${currentAssignedId}" selected>${escapeHtml(assignedStaffName)} (${roleLabel})</option>` + optionsHtml;
+            }
+
+            const hasAssigned = Boolean(currentAssignedId && (assignedStaffName || currentTechnicians.some((t) => t.id === currentAssignedId)));
+
             techStaffHtml = `
-              <div style="position: relative; width: 100%; max-width: 190px;">
+              <div style="position: relative; width: 100%; max-width: 195px;">
                 <select onchange="reassignJobTechnician('${job.id}', this.value)" style="font-size: 12px; font-weight: 600; color: #1e293b; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 22px 4px 8px; width: 100%; cursor: pointer; outline: none; appearance: none; -webkit-appearance: none; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;" title="Click to reassign technician">
-                  <option value="" disabled ${!currentAssignedId ? 'selected' : ''}>Select Technician...</option>
+                  <option value="" disabled ${!hasAssigned ? 'selected' : ''}>Select Technician...</option>
                   ${optionsHtml}
                 </select>
                 <span style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #64748b; font-size: 10px;">▼</span>
               </div>
             `;
           } else {
-            const isUnassigned = !job.technicianId || !job.technician;
-            const isFormer = job.technician && job.technician.role === 'DEACTIVATED';
+            const isUnassigned = !currentAssignedId;
             techStaffHtml = !isUnassigned
               ? `<div class="font-bold text-slate-800 flex items-center space-x-1.5 flex-wrap">
-                   <span>${escapeHtml(job.technician.name)}</span>
+                   <span>${escapeHtml(assignedStaffName || 'Assigned Staff')}</span>
                    ${isFormer ? '<span class="text-[10px] text-slate-400 font-semibold">(Former Staff)</span>' : ''}
                  </div>
-                 <div class="mt-0.5">${getRoleBadgeHtml(job.technician.role)}</div>`
+                 <div class="mt-0.5">${getRoleBadgeHtml(assignedStaffRole)}</div>`
               : `<span class="text-xs text-slate-400 italic">Unassigned</span>`;
           }
-          const techPhone = job.technician && job.technician.phone ? `<span class="text-xs text-slate-400 block font-mono mt-0.5">${job.technician.phone}</span>` : '';
+
+          // Fallback confirmation display: shows assigned full name with indicator dot
+          const fallbackDisplay = (isActive && assignedStaffName)
+            ? `<div class="flex items-center space-x-1.5 mt-1 text-xs text-slate-700 font-semibold" title="Assigned: ${escapeHtml(assignedStaffName)}">
+                 <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block flex-shrink-0"></span>
+                 <span class="truncate" style="max-width: 170px;">${escapeHtml(assignedStaffName)}</span>
+                 ${isFormer ? '<span class="text-[10px] text-slate-400 font-normal">(Former)</span>' : ''}
+               </div>`
+            : '';
+
+          const phoneDisplay = assignedStaffPhone
+            ? `<span class="text-xs text-slate-400 block font-mono mt-0.5">${escapeHtml(assignedStaffPhone)}</span>`
+            : '';
           const isCompleted = job.status === 'COMPLETED';
 
           // Sanitize description: If job description contains repeated test characters (e.g. ???, <<<, etc.) or placeholder junk
@@ -2361,7 +2427,8 @@
               </td>
               <td class="py-3.5 px-4 text-left whitespace-nowrap">
                 ${techStaffHtml}
-                ${techPhone}
+                ${fallbackDisplay}
+                ${phoneDisplay}
               </td>
               <td class="py-3.5 px-4 text-center whitespace-nowrap">
                 <div class="status-wrapper" style="display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center; margin: 0 auto;">
@@ -2426,15 +2493,16 @@
         const techInitialsElem = document.getElementById('drawerTechInitials');
         const techRoleElem = document.getElementById('drawerTechRole');
 
-        if (job?.technician) {
-          const isFormer = job.technician.role === 'DEACTIVATED';
+        const staffInfo = getAssignedStaffInfo(job);
+
+        if (staffInfo.id && (staffInfo.name || staffInfo.phone)) {
           if (techNameElem) {
-            techNameElem.innerHTML = `${escapeHtml(job.technician.name || 'Assigned')}${isFormer ? ' <span class="text-[10px] text-slate-400 font-semibold">(Former Staff)</span>' : ''}`;
+            techNameElem.innerHTML = `${escapeHtml(staffInfo.name || 'Assigned')}${staffInfo.isFormer ? ' <span class="text-[10px] text-slate-400 font-semibold">(Former Staff)</span>' : ''}`;
           }
-          if (techPhoneElem) techPhoneElem.textContent = job.technician.phone || '';
-          if (techInitialsElem) techInitialsElem.textContent = (job.technician.name || 'T').split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase();
+          if (techPhoneElem) techPhoneElem.textContent = staffInfo.phone || '';
+          if (techInitialsElem) techInitialsElem.textContent = (staffInfo.name || 'T').split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase();
           if (techRoleElem) {
-            techRoleElem.innerHTML = getRoleBadgeHtml(job.technician.role);
+            techRoleElem.innerHTML = getRoleBadgeHtml(staffInfo.role);
             techRoleElem.classList.remove('hidden');
           }
         } else {
@@ -2450,13 +2518,19 @@
 
         if (isActiveTask && drawerReassignContainer && drawerReassignSelect) {
           drawerReassignContainer.classList.remove('hidden');
-          const currentAssignedId = job.technicianId || (job.technician && job.technician.id) || '';
-          drawerReassignSelect.innerHTML = '<option value="" disabled' + (!currentAssignedId ? ' selected' : '') + '>Select Field Staff Member...</option>' +
-            currentTechnicians.map((t) => {
-              const isSelected = t.id === currentAssignedId ? 'selected' : '';
-              const roleLabel = getRoleLabel(t.role);
-              return `<option value="${t.id}" ${isSelected}>${escapeHtml(t.name)} (${roleLabel})</option>`;
-            }).join('');
+          const currentAssignedId = staffInfo.id;
+          let drawerOptionsHtml = currentTechnicians.map((t) => {
+            const isSelected = (currentAssignedId && t.id === currentAssignedId) ? 'selected' : '';
+            const roleLabel = getRoleLabel(t.role);
+            return `<option value="${t.id}" ${isSelected}>${escapeHtml(t.name)} (${roleLabel})</option>`;
+          }).join('');
+
+          if (currentAssignedId && staffInfo.name && !currentTechnicians.some((t) => t.id === currentAssignedId)) {
+            const roleLabel = getRoleLabel(staffInfo.role);
+            drawerOptionsHtml = `<option value="${currentAssignedId}" selected>${escapeHtml(staffInfo.name)} (${roleLabel})</option>` + drawerOptionsHtml;
+          }
+
+          drawerReassignSelect.innerHTML = '<option value="" disabled' + (!currentAssignedId ? ' selected' : '') + '>Select Field Staff Member...</option>' + drawerOptionsHtml;
           drawerReassignSelect.onchange = function () {
             if (this.value && typeof window.reassignJobTechnician === 'function') {
               window.reassignJobTechnician(job.id, this.value);
@@ -3725,12 +3799,13 @@
       }
 
       assignTechSelect.innerHTML = '<option value="">Select an available technician...</option>';
+      const currentAssignedId = job.technicianId || job.assignedTechId || job.assignedStaffId || job.technician?.id || '';
       currentTechnicians.forEach((t) => {
         const opt = document.createElement('option');
         opt.value = t.id;
         const roleLabel = getRoleLabel(t.role);
         opt.textContent = `${t.name} (${roleLabel}) - ${t.activeJobsCount || 0} active ${t.activeJobsCount === 1 ? 'job' : 'jobs'}`;
-        if (job.technicianId === t.id) opt.selected = true;
+        if (currentAssignedId === t.id) opt.selected = true;
         assignTechSelect.appendChild(opt);
       });
     };
@@ -3778,14 +3853,21 @@
           }
 
           const updatedJob = await res.json().catch(() => ({}));
+          const targetTech = currentTechnicians.find((t) => t.id === selectedTechId);
 
           // Update local state immediately
           const idx = currentJobs.findIndex((j) => j.id === activeAssignJobId);
           if (idx !== -1) {
+            const techResolved = updatedJob.technician || updatedJob.assignedStaff || updatedJob.assignedUser || targetTech;
             currentJobs[idx] = {
               ...currentJobs[idx],
               ...updatedJob,
-              technician: updatedJob.technician || currentTechnicians.find((t) => t.id === selectedTechId),
+              technicianId: selectedTechId,
+              assignedTechId: selectedTechId,
+              assignedStaffId: selectedTechId,
+              technician: techResolved,
+              assignedStaff: techResolved,
+              assignedUser: techResolved,
             };
             renderJobsTable();
             recalculateKpisFromCurrentJobs();
@@ -3975,10 +4057,19 @@
 
             const existingIdx = currentJobs.findIndex((j) => j.id === updatedJob.id);
             if (existingIdx !== -1) {
+              const prev = currentJobs[existingIdx];
+              const resolvedTech = updatedJob.technician !== undefined
+                ? updatedJob.technician
+                : (updatedJob.assignedStaff || updatedJob.assignedUser || prev.technician);
               currentJobs[existingIdx] = {
-                ...currentJobs[existingIdx],
+                ...prev,
                 ...updatedJob,
-                technician: updatedJob.technician !== undefined ? updatedJob.technician : currentJobs[existingIdx].technician,
+                technicianId: updatedJob.technicianId || updatedJob.assignedTechId || updatedJob.assignedStaffId || prev.technicianId,
+                assignedTechId: updatedJob.assignedTechId || updatedJob.technicianId || updatedJob.assignedStaffId || prev.assignedTechId,
+                assignedStaffId: updatedJob.assignedStaffId || updatedJob.technicianId || updatedJob.assignedTechId || prev.assignedStaffId,
+                technician: resolvedTech,
+                assignedStaff: updatedJob.assignedStaff || resolvedTech,
+                assignedUser: updatedJob.assignedUser || resolvedTech,
               };
             } else {
               currentJobs.unshift(updatedJob);
@@ -4196,6 +4287,8 @@
             popupAnchor: [0, -36],
           });
 
+          const staffOnJob = getAssignedStaffInfo(job);
+
           const popupHtml = `
             <div style="font-family: Inter, system-ui, -apple-system, sans-serif; font-size: 12px; color: #1e293b; min-width: 200px; padding: 4px;">
               <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px;">
@@ -4205,7 +4298,7 @@
               <div style="font-weight: 700; font-size: 13px; color: #0f172a; margin-bottom: 2px; line-height: 1.3;">${escapeHtml(job.title || 'Work Order')}</div>
               <div style="font-size: 11px; color: #475569; margin-bottom: 2px;">${escapeHtml(job.customerName || 'Customer')}</div>
               <div style="font-size: 11px; color: #64748b; margin-bottom: 6px;">${escapeHtml(job.customerAddress || 'No address provided')}</div>
-              ${job.technician ? `<div style="font-size: 11px; font-weight: 600; color: #4338ca; margin-bottom: 6px;">Tech: ${escapeHtml(job.technician.name || job.assignedTech)}</div>` : ''}
+              ${staffOnJob.name ? `<div style="font-size: 11px; font-weight: 600; color: #4338ca; margin-bottom: 6px;">Tech: ${escapeHtml(staffOnJob.name)}</div>` : ''}
               <button onclick="openAudit('${job.id}')" style="width: 100%; padding: 5px 8px; background: #0f172a; color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">
                 View Work Order Details
               </button>

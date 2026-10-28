@@ -37,6 +37,8 @@ export const createJobSchema = z.object({
     .optional()
     .nullable()
     .or(z.literal('')),
+  assignedTechId: z.string().optional().nullable().or(z.literal('')),
+  assignedStaffId: z.string().optional().nullable().or(z.literal('')),
   latitude: z.number().optional().nullable(),
   longitude: z.number().optional().nullable(),
 });
@@ -50,6 +52,7 @@ export const updateJobSchema = z.object({
     .optional(),
   technicianId: z.string().optional().nullable(),
   assignedTechId: z.string().optional().nullable(),
+  assignedStaffId: z.string().optional().nullable(),
   completionNotes: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   signatureData: z.string().optional().nullable(),
