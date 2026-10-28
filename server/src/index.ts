@@ -47,6 +47,7 @@ import { getTransporter, verifyTransporter, getSmtpConfig } from './modules/noti
 import { errorHandler } from './middleware/error.middleware';
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = Number(process.env.PORT) || 5000;
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
