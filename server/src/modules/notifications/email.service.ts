@@ -176,7 +176,10 @@ export async function sendCompletionEmail(
 
     // 1. Format details and verify link safety
     const host = getServerLanHost();
-    const appUrl = (process.env.APP_URL || `http://${host}:5000`).replace(/\/$/, '');
+    const defaultAppUrl = process.env.VERCEL || process.env.NODE_ENV === 'production'
+      ? 'https://fieldops-platform-server.vercel.app'
+      : `http://${host}:5000`;
+    const appUrl = (process.env.APP_URL || defaultAppUrl).replace(/\/+$/, '');
     const pdfUrl = `${appUrl}/api/jobs/${job.id}/pdf`;
     const customerName = job.customerName || 'Valued Customer';
     const notes = job.completionNotes || job.notes || 'Service completed and reviewed on-site.';
