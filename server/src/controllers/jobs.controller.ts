@@ -633,21 +633,22 @@ export const getJobPdf = async (req: Request, res: Response) => {
     }
 
     if (!job) {
+      console.warn(`[getJobPdf] Work order not found for ID: "${rawId}"`);
       return res.status(404).json({ error: 'Job not found' });
     }
 
     const pdfBuffer = await generateJobPdf(job);
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader(
-      'Content-Disposition',
-      `inline; filename="WorkOrder-${job.id}.pdf"`
-    );
+    res.setHeader('Content-Disposition', 'inline; filename="receipt.pdf"');
     res.setHeader('Content-Length', pdfBuffer.length);
     res.end(pdfBuffer);
-  } catch (error) {
-    console.error('Error generating job PDF certificate:', error);
-    res.status(500).json({ error: 'Failed to generate PDF certificate' });
+  } catch (error: any) {
+    console.error("PDF generation failure:", error);
+    res.status(500).json({
+      error: 'Failed to generate PDF certificate',
+      message: error?.message || 'Unknown PDF generation error',
+    });
   }
 };
 

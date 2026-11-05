@@ -3,7 +3,13 @@
   "builds": [
     {
       "src": "server/src/index.ts",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "server/node_modules/pdfkit/**",
+          "node_modules/pdfkit/**"
+        ]
+      }
     }
   ],
   "routes": [

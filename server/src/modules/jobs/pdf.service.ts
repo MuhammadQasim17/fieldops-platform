@@ -1,4 +1,10 @@
 import PDFDocument from 'pdfkit';
+import 'pdfkit/standard-fonts/Helvetica';
+import 'pdfkit/standard-fonts/HelveticaBold';
+import 'pdfkit/standard-fonts/HelveticaOblique';
+import 'pdfkit/standard-fonts/HelveticaBoldOblique';
+import 'pdfkit/standard-fonts/Courier';
+import 'pdfkit/standard-fonts/TimesRoman';
 import { prisma } from '../../prisma';
 
 export interface JobForPdf {
@@ -38,13 +44,61 @@ export interface JobForPdf {
 }
 
 /**
+ * Validate if an image Buffer is supported natively by PDFKit (JPEG or PNG).
+ * PDFKit throws an unhandled exception if unsupported image formats (e.g. WebP, SVG, GIF)
+ * are passed directly to doc.image().
+ */
+export function isValidPdfImage(buf: Buffer | null): boolean {
+  if (!buf || !Buffer.isBuffer(buf) || buf.length < 4) return false;
+  // JPEG magic bytes: 0xFF 0xD8
+  const isJpeg = buf[0] === 0xff && buf[1] === 0xd8;
+  // PNG magic bytes: 0x89 0x50 0x4E 0x47
+  const isPng = buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47;
+  return isJpeg || isPng;
+}
+
+/**
+ * Safely embed an image buffer into the PDFKit document.
+ * Returns true if successfully drawn, false if invalid or failed.
+ */
+function safeEmbedImage(
+  doc: any,
+  buf: Buffer | null,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+): boolean {
+  if (!isValidPdfImage(buf)) return false;
+  try {
+    doc.save();
+    doc.image(buf, x, y, {
+      fit: [w, h],
+      align: 'center',
+      valign: 'center',
+    });
+    doc.restore();
+    return true;
+  } catch (err) {
+    console.error("PDF generation failure: Image embedding error:", err);
+    try {
+      doc.restore();
+    } catch {}
+    return false;
+  }
+}
+
+/**
  * Extract an image Buffer from a data URI, local path, or raw base64.
  */
 function parseImageBuffer(photoStr?: string | null): Buffer | null {
   if (!photoStr || typeof photoStr !== 'string') return null;
 
+  const trimmed = photoStr.trim();
+  if (trimmed.length === 0) return null;
+
   // 1. Data URI with base64
-  const dataUriMatch = photoStr.match(/^data:image\/(?:jpeg|jpg|png|webp);base64,(.+)$/i);
+  const dataUriMatch = trimmed.match(/^data:image\/(?:jpeg|jpg|png|webp);base64,(.+)$/is);
   if (dataUriMatch && dataUriMatch[1]) {
     try {
       return Buffer.from(dataUriMatch[1].trim(), 'base64');
@@ -53,10 +107,16 @@ function parseImageBuffer(photoStr?: string | null): Buffer | null {
     }
   }
 
-  // 2. Raw base64 string
-  if (photoStr.length > 100 && !photoStr.startsWith('http') && !photoStr.startsWith('file:') && !photoStr.includes('<svg')) {
+  // 2. Raw base64 string (skip URLs, file links, and SVG markups)
+  if (
+    trimmed.length > 50 &&
+    !trimmed.startsWith('http://') &&
+    !trimmed.startsWith('https://') &&
+    !trimmed.startsWith('file:') &&
+    !trimmed.includes('<svg')
+  ) {
     try {
-      return Buffer.from(photoStr.trim(), 'base64');
+      return Buffer.from(trimmed, 'base64');
     } catch {
       return null;
     }
@@ -146,7 +206,10 @@ export async function generateJobPdf(jobOrId: string | JobForPdf): Promise<Buffe
       const chunks: Buffer[] = [];
       doc.on('data', (chunk) => chunks.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.on('error', (err) => reject(err));
+      doc.on('error', (err) => {
+        console.error("PDF generation failure: Document stream error:", err);
+        reject(err);
+      });
 
       const pageWidth = 612;
       const leftMargin = 36;
@@ -318,21 +381,19 @@ export async function generateJobPdf(jobOrId: string | JobForPdf): Promise<Buffe
       doc.fontSize(7.5).font('Helvetica-Bold').fillColor('#334155').text('BEFORE SERVICE PHOTO', leftMargin + 8, beforeBoxTop + 4);
 
       const beforeImgBuffer = parseImageBuffer(job.beforePhotoUrl);
-      if (beforeImgBuffer) {
-        try {
-          doc.image(beforeImgBuffer, leftMargin + 6, beforeBoxTop + 18, {
-            fit: [photoBoxWidth - 12, photoBoxHeight - 22],
-            align: 'center',
-            valign: 'center',
-          });
-        } catch (imgErr) {
-          doc.fontSize(7.5).font('Helvetica-Oblique').fillColor('#94A3B8')
-            .text('Photo artifact recorded but format unavailable', leftMargin + 10, beforeBoxTop + 48, { width: photoBoxWidth - 20, align: 'center' });
-        }
-      } else {
+      const beforeRendered = safeEmbedImage(
+        doc,
+        beforeImgBuffer,
+        leftMargin + 6,
+        beforeBoxTop + 18,
+        photoBoxWidth - 12,
+        photoBoxHeight - 22
+      );
+
+      if (!beforeRendered) {
         doc.rect(leftMargin + 16, beforeBoxTop + 26, photoBoxWidth - 32, photoBoxHeight - 38).fillAndStroke('#FFFFFF', '#E2E8F0');
         doc.fontSize(7.5).font('Helvetica-Oblique').fillColor('#94A3B8')
-          .text('No Before Service photo captured', leftMargin + 20, beforeBoxTop + 50, { width: photoBoxWidth - 40, align: 'center' });
+          .text(job.beforePhotoUrl ? 'Photo recorded (preview unavailable in PDF)' : 'No Before Service photo captured', leftMargin + 20, beforeBoxTop + 50, { width: photoBoxWidth - 40, align: 'center' });
       }
 
       // Right Box: After Service Photo
@@ -341,21 +402,19 @@ export async function generateJobPdf(jobOrId: string | JobForPdf): Promise<Buffe
       doc.fontSize(7.5).font('Helvetica-Bold').fillColor('#334155').text('AFTER SERVICE PHOTO', col2Left + 8, beforeBoxTop + 4);
 
       const afterImgBuffer = parseImageBuffer(job.afterPhotoUrl);
-      if (afterImgBuffer) {
-        try {
-          doc.image(afterImgBuffer, col2Left + 6, beforeBoxTop + 18, {
-            fit: [photoBoxWidth - 12, photoBoxHeight - 22],
-            align: 'center',
-            valign: 'center',
-          });
-        } catch (imgErr) {
-          doc.fontSize(7.5).font('Helvetica-Oblique').fillColor('#94A3B8')
-            .text('Photo artifact recorded but format unavailable', col2Left + 10, beforeBoxTop + 48, { width: photoBoxWidth - 20, align: 'center' });
-        }
-      } else {
+      const afterRendered = safeEmbedImage(
+        doc,
+        afterImgBuffer,
+        col2Left + 6,
+        beforeBoxTop + 18,
+        photoBoxWidth - 12,
+        photoBoxHeight - 22
+      );
+
+      if (!afterRendered) {
         doc.rect(col2Left + 16, beforeBoxTop + 26, photoBoxWidth - 32, photoBoxHeight - 38).fillAndStroke('#FFFFFF', '#E2E8F0');
         doc.fontSize(7.5).font('Helvetica-Oblique').fillColor('#94A3B8')
-          .text('No After Service photo captured', col2Left + 20, beforeBoxTop + 50, { width: photoBoxWidth - 40, align: 'center' });
+          .text(job.afterPhotoUrl ? 'Photo recorded (preview unavailable in PDF)' : 'No After Service photo captured', col2Left + 20, beforeBoxTop + 50, { width: photoBoxWidth - 40, align: 'center' });
       }
 
       // ==========================================
@@ -506,6 +565,7 @@ export async function generateJobPdf(jobOrId: string | JobForPdf): Promise<Buffe
 
       const sigPaths = extractSvgPaths(job.signatureData);
       const sigImageBuf = parseImageBuffer(job.signatureData);
+      let signatureRendered = false;
 
       if (sigPaths.length > 0) {
         // Draw SVG paths dynamically scaled to true bounding box and strictly confined within sigBox
@@ -550,45 +610,66 @@ export async function generateJobPdf(jobOrId: string | JobForPdf): Promise<Buffe
             const offsetY = sigBoxY + (sigBoxH - renderH) / 2;
 
             doc.save();
-            // Strict clipping mask (overflow: hidden) so signature never breaches bounding box or baseline
-            doc.rect(sigBoxX, sigBoxY, sigBoxW, sigBoxH).clip();
-            doc.translate(offsetX, offsetY);
-            doc.scale(scale);
-            doc.translate(-boxX, -boxY);
+            try {
+              // Strict clipping mask (overflow: hidden) so signature never breaches bounding box or baseline
+              doc.rect(sigBoxX, sigBoxY, sigBoxW, sigBoxH).clip();
+              doc.translate(offsetX, offsetY);
+              doc.scale(scale);
+              doc.translate(-boxX, -boxY);
 
-            for (const p of sigPaths) {
-              doc.path(p).lineWidth(2.2 / scale).strokeColor('#0F172A').lineCap('round').lineJoin('round').stroke();
+              for (const p of sigPaths) {
+                doc.path(p).lineWidth(2.2 / scale).strokeColor('#0F172A').lineCap('round').lineJoin('round').stroke();
+              }
+              signatureRendered = true;
+            } finally {
+              doc.restore();
             }
-            doc.restore();
           } else {
             // Fallback scaling if bounding box could not be determined
             const scale = Math.min(sigBoxW / 360, sigBoxH / 150);
             doc.save();
-            doc.rect(sigBoxX, sigBoxY, sigBoxW, sigBoxH).clip();
-            doc.translate(sigBoxX, sigBoxY);
-            doc.scale(scale);
-            for (const p of sigPaths) {
-              doc.path(p).lineWidth(2.5 / scale).strokeColor('#0F172A').stroke();
+            try {
+              doc.rect(sigBoxX, sigBoxY, sigBoxW, sigBoxH).clip();
+              doc.translate(sigBoxX, sigBoxY);
+              doc.scale(scale);
+              for (const p of sigPaths) {
+                doc.path(p).lineWidth(2.5 / scale).strokeColor('#0F172A').stroke();
+              }
+              signatureRendered = true;
+            } finally {
+              doc.restore();
             }
-            doc.restore();
           }
         } catch (svgErr) {
-          doc.fontSize(8).font('Helvetica-Oblique').fillColor('#64748B')
-            .text('Signature Verified & Recorded On-Site', sigBoxX, sigBoxY + 20, { width: sigBoxW, align: 'center' });
+          console.warn("PDF generation warning: SVG signature rendering error:", svgErr);
         }
-      } else if (sigImageBuf) {
+      } else if (sigImageBuf && isValidPdfImage(sigImageBuf)) {
         try {
           doc.save();
-          doc.rect(sigBoxX, sigBoxY, sigBoxW, sigBoxH).clip();
-          doc.image(sigImageBuf, sigBoxX + (sigBoxW - 220) / 2, sigBoxY, { fit: [220, sigBoxH], align: 'center', valign: 'center' });
-          doc.restore();
-        } catch {
+          try {
+            doc.rect(sigBoxX, sigBoxY, sigBoxW, sigBoxH).clip();
+            doc.image(sigImageBuf, sigBoxX + (sigBoxW - 220) / 2, sigBoxY, {
+              fit: [220, sigBoxH],
+              align: 'center',
+              valign: 'center',
+            });
+            signatureRendered = true;
+          } finally {
+            doc.restore();
+          }
+        } catch (imgErr) {
+          console.warn("PDF generation warning: Signature image embedding error:", imgErr);
+        }
+      }
+
+      if (!signatureRendered) {
+        if (job.signatureData) {
           doc.fontSize(8).font('Helvetica-Oblique').fillColor('#64748B')
             .text('Signature Verified & Recorded On-Site', sigBoxX, sigBoxY + 20, { width: sigBoxW, align: 'center' });
+        } else {
+          doc.fontSize(8).font('Helvetica-Oblique').fillColor('#94A3B8')
+            .text('No signature artifact attached', sigBoxX, sigBoxY + 20, { width: sigBoxW, align: 'center' });
         }
-      } else {
-        doc.fontSize(8).font('Helvetica-Oblique').fillColor('#94A3B8')
-          .text('No signature artifact attached', sigBoxX, sigBoxY + 20, { width: sigBoxW, align: 'center' });
       }
 
       // Baseline line for signature
@@ -636,6 +717,7 @@ export async function generateJobPdf(jobOrId: string | JobForPdf): Promise<Buffe
       // Finalize document
       doc.end();
     } catch (err) {
+      console.error("PDF generation failure:", err);
       reject(err);
     }
   });
