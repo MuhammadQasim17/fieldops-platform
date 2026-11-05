@@ -11,7 +11,35 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 dotenv.config();
 
 /**
- * Resolve the server's LAN IPv4 host for direct PDF download links in customer emails.
+ * Resolve the public server URL for direct receipt and PDF download links in customer emails.
+ * Uses process.env.SERVER_URL || process.env.API_URL || 'https://fieldops-platform-server.vercel.app'.
+ */
+export function getReceiptServerUrl(): string {
+  const configured = (
+    process.env.SERVER_URL ||
+    process.env.API_URL ||
+    (process.env.APP_URL && !process.env.APP_URL.includes('192.168.') ? process.env.APP_URL : null) ||
+    'https://fieldops-platform-server.vercel.app'
+  ).trim();
+
+  // Strip trailing slashes and /api suffix to get clean root base URL
+  const cleanUrl = configured.replace(/\/+$/, '').replace(/\/api\/?$/i, '');
+
+  if (
+    !cleanUrl ||
+    cleanUrl.includes('192.168.') ||
+    cleanUrl.includes('10.0.') ||
+    cleanUrl.includes('172.16.') ||
+    cleanUrl.includes('127.0.0.1')
+  ) {
+    return 'https://fieldops-platform-server.vercel.app';
+  }
+
+  return cleanUrl;
+}
+
+/**
+ * Resolve the server's public or LAN host for diagnostic and logging purposes.
  */
 function getServerLanHost(): string {
   if (process.env.PUBLIC_HOST && process.env.PUBLIC_HOST.trim()) {
@@ -36,7 +64,7 @@ function getServerLanHost(): string {
   } catch {
     // Ignore network interface lookup errors
   }
-  return process.env.PUBLIC_HOST || '192.168.1.6';
+  return process.env.PUBLIC_HOST || 'fieldops-platform-server.vercel.app';
 }
 
 export interface SmtpConfig {
@@ -174,13 +202,9 @@ export async function sendCompletionEmail(
 
     const transporter = await getTransporter();
 
-    // 1. Format details and verify link safety
-    const host = getServerLanHost();
-    const defaultAppUrl = process.env.VERCEL || process.env.NODE_ENV === 'production'
-      ? 'https://fieldops-platform-server.vercel.app'
-      : `http://${host}:5000`;
-    const appUrl = (process.env.APP_URL || defaultAppUrl).replace(/\/+$/, '');
-    const pdfUrl = `${appUrl}/api/jobs/${job.id}/pdf`;
+    // 1. Format details and construct official receipt download link
+    const serverUrl = getReceiptServerUrl();
+    const pdfUrl = `${serverUrl}/api/jobs/${job.id}/pdf`;
     const customerName = job.customerName || 'Valued Customer';
     const notes = job.completionNotes || job.notes || 'Service completed and reviewed on-site.';
     const techName = job.technician?.name || 'Assigned Field Technician';
